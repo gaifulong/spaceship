@@ -3,15 +3,10 @@ package com.spaceship.ranger.socket;
 import com.spaceship.ranger.bean.MessageBean;
 import com.spaceship.ranger.bean.MessageUserBean;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @ServerEndpoint(
@@ -20,8 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
         decoders = MessageDecoder.class
 )
 public class MessageWebSocket {
-
-    private static final ConcurrentHashMap<String, List<WebSocketClientData>> mWebSocketClientMap = new ConcurrentHashMap<>();
 
     /**
      * 建立连接时触发，绑定参数
@@ -39,20 +32,12 @@ public class MessageWebSocket {
         client.setSession(session);
         client.setUrl(session.getRequestURI().toString());
 
-        List<WebSocketClientData> webSocketClientList = mWebSocketClientMap.get(userid);
-        if (webSocketClientList == null) {
-            webSocketClientList = new ArrayList<>();
-        }
-        webSocketClientList.add(client);
-        mWebSocketClientMap.put(userid, webSocketClientList);
+        SocketClientManager.put(userid, client);
 
         MessageBean message = new MessageBean();
-        String username = session.getRequestParameterMap().get("username").get(0);
-        if (StringUtils.isEmpty(username)) {
-            username = userid;
-        }
+        String username = SocketClientManager.getUsername(session);
         message.setContent(String.format("%s%s%s\n", "用户", username ,"已进入"));
-        sendMessageToAll(message);
+        SocketMessageUtil.sendMessageToAll(message);
 
     }
 
@@ -65,12 +50,9 @@ public class MessageWebSocket {
             @PathParam("userid") String userid,
             Session session
     ) {
-        String username = session.getRequestParameterMap().get("username").get(0);
-        if (StringUtils.isEmpty(username)) {
-            username = userid;
-        }
+        String username = SocketClientManager.getUsername(session);
         message.setFrom(new MessageUserBean(userid, username));
-        sendMessageToAll(message);
+        SocketMessageUtil.sendMessageToAll(message);
     }
 
     /**
@@ -83,11 +65,11 @@ public class MessageWebSocket {
     public void onClose (
             @PathParam("userid") String userid
     ) {
-        mWebSocketClientMap.remove(userid);
+        SocketClientManager.remove(userid);
 
         MessageBean message = new MessageBean();
         message.setContent(String.format("%s%s%s\n", "用户：", userid ,"已退出"));
-        sendMessageToAll(message);
+        SocketMessageUtil.sendMessageToAll(message);
     }
 
     /**
@@ -106,46 +88,6 @@ public class MessageWebSocket {
         error.printStackTrace();
     }
 
-    /**
-     * 向客户端发送消息
-     * @param userid
-     * 目标客户端用户id
-     * @param message
-     * 消息内容
-     */
-    public static void sendMessage(
-            String userid,
-            String message
-    ) {
-        List<WebSocketClientData> webSocketClientList = mWebSocketClientMap.get(userid);
-        if (webSocketClientList != null) {
-            webSocketClientList.forEach(t -> {
-                try {
-                    t.getSession().getBasicRemote().sendText(message);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    throw new RuntimeException(e.getMessage());
-                }
-            });
-        }
-    }
-
-    /**
-     * 给所有客户端发送消息
-     * @param message
-     * 消息
-     */
-    public static void sendMessageToAll (MessageBean message) {
-        mWebSocketClientMap.values().forEach(t ->
-                t.forEach(i -> {
-                    try {
-                        i.getSession().getBasicRemote().sendObject(message);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                })
-        );
-    }
 
 
 }
