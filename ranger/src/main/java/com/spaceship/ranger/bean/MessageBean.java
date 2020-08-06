@@ -1,25 +1,38 @@
 package com.spaceship.ranger.bean;
 
-public class MessageBean {
+import java.io.Serializable;
+import java.util.Date;
 
-    private String from;
-    private String to;
+public class MessageBean implements Serializable {
+
+    private MessageUserBean from = new MessageUserBean("", "系统");
+    private MessageUserBean to;
     private String content;
     private int state;
+    private int type;
+    private Date createTime = new Date();
 
-    public String getFrom() {
+    public int getType() {
+        return type;
+    }
+
+    public void setType(int type) {
+        this.type = type;
+    }
+
+    public MessageUserBean getFrom() {
         return from;
     }
 
-    public void setFrom(String from) {
+    public void setFrom(MessageUserBean from) {
         this.from = from;
     }
 
-    public String getTo() {
+    public MessageUserBean getTo() {
         return to;
     }
 
-    public void setTo(String to) {
+    public void setTo(MessageUserBean to) {
         this.to = to;
     }
 
@@ -37,5 +50,13 @@ public class MessageBean {
 
     public void setState(int state) {
         this.state = state;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
     }
 }

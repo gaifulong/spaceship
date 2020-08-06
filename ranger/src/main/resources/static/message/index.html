@@ -9,6 +9,7 @@
             height: 100%;
         }
         body {
+            margin: 0;
             width: 100%;
             height: 100%;
         }
@@ -32,6 +33,19 @@
         .main-footer {
 
         }
+        .message {
+
+        }
+        .message .self {
+            text-align: right;
+        }
+
+        .message .other {
+
+        }
+        .message .name {
+            color: #FF69B4;
+        }
     </style>
 </head>
 <body>
@@ -40,14 +54,24 @@
     <div class="container">
         <div class="main">
             <div class="main-header">
-                <button onclick="openWebSocket()">打开WebSocket连接</button>
-                <button onclick="closeWebSocket()">关闭WebSocket连接</button>
+                <div>
+                    <label for="username">用户名：</label>
+                    <input id="username" type="text" placeholder="请输入用户名"/>
+                    <button onclick="login()">登录</button>
+                </div>
+                <div>
+                    <div></div>
+                    <button onclick="logout()">退出</button>
+                </div>
+<!--                <button onclick="openWebSocket()">打开WebSocket连接</button>-->
+<!--                <button onclick="closeWebSocket()">关闭WebSocket连接</button>-->
             </div>
             <div class="main-content">
-                <div id="message"></div>
+                <div id="message" class="message"></div>
             </div>
             <div class="main-footer">
-                <input id="inputText" type="text"/>
+                <label for="allUser">选择聊天对象</label><select id="allUser"><option>全体</option></option></select>
+                <label for="inputText">消息内容</label><input id="inputText" type="text" placeholder="请输入消息内容"/>
                 <button onclick="sendMessage()">发送</button>
             </div>
         </div>
@@ -55,14 +79,23 @@
 
     <script type="text/javascript">
         var websocket = null;
+        function login () {
+            let username = document.getElementById("username").value.trim()
+            if (username && username.length > 0)
+            openWebSocket(username)
+        }
+        function logout () {
+            closeWebSocket();
+        }
         function openWebSocket () {
             if (websocket != null) {
                 return;
             }
+            let username = document.getElementById("username").value.trim()
             // var url = document.getElementById("url").value.trim();
-            var tempUserId = randomString();
-            var host = window.location.host
-            var url = "ws://"+host+"/web_socket/message/" + tempUserId
+            let tempUserId = randomString();
+            let host = window.location.host
+            let url = "ws://"+host+"/web_socket/message/" + tempUserId + "?username=" + username
             // 判断当前浏览器是否支持 WebSocket
             if ('WebSocket' in window) {
                 websocket = new WebSocket(url);
@@ -81,7 +114,35 @@
             // 收到消息的回调方法
             websocket.onmessage = function (event) {
                 let message = JSON.parse(event.data)
-                setMessageInnerHTML (message.content);
+                var html = ''
+                if (tempUserId === message.from.userId) {
+                    html += '<div class="self">'
+                    html += '<span class="name">'
+                    html += message.from.username
+                    html += '</span>'
+                    html += "</br>"
+                    html += message.content
+                    html += "</div>"
+                } else if (message.from.userId !== undefined
+                    && message.from.userId !== null
+                    && message.from.userId.length > 0){
+                    html += '<div class="other">'
+                    html += '<span class="name">'
+                    html += message.from.username
+                    html += '</span>'
+                    html += "</br>"
+                    html += message.content
+                    html += "</div>"
+                } else {
+                    html += '<div class="other">'
+                    html += '<span class="name">'
+                    html += message.from.username
+                    html += '</span>'
+                    html += " : "
+                    html += message.content
+                    html += "</div>"
+                }
+                setMessageInnerHTML (html);
             };
             // 连接关闭的回调方法
             websocket.onclose = function () {

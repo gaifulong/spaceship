@@ -1,8 +1,9 @@
 package com.spaceship.ranger.socket;
 
-import com.alibaba.fastjson.JSON;
 import com.spaceship.ranger.bean.MessageBean;
+import com.spaceship.ranger.bean.MessageUserBean;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.websocket.*;
 import javax.websocket.server.PathParam;
@@ -13,7 +14,11 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-@ServerEndpoint("/web_socket/message/{userid}")
+@ServerEndpoint(
+        value = "/web_socket/message/{userid}",
+        encoders = MessageEncoder.class,
+        decoders = MessageDecoder.class
+)
 public class MessageWebSocket {
 
     private static final ConcurrentHashMap<String, List<WebSocketClientData>> mWebSocketClientMap = new ConcurrentHashMap<>();
@@ -42,8 +47,13 @@ public class MessageWebSocket {
         mWebSocketClientMap.put(userid, webSocketClientList);
 
         MessageBean message = new MessageBean();
-        message.setContent(String.format("%s%s%s\n", "用户：", userid ,"已进入"));
+        String username = session.getRequestParameterMap().get("username").get(0);
+        if (StringUtils.isEmpty(username)) {
+            username = userid;
+        }
+        message.setContent(String.format("%s%s%s\n", "用户", username ,"已进入"));
         sendMessageToAll(message);
+
     }
 
     /**
@@ -51,10 +61,15 @@ public class MessageWebSocket {
      */
     @OnMessage
     public void onMessage (
-            String params,
+            MessageBean message,
+            @PathParam("userid") String userid,
             Session session
     ) {
-        MessageBean message = JSON.parseObject(params, MessageBean.class);
+        String username = session.getRequestParameterMap().get("username").get(0);
+        if (StringUtils.isEmpty(username)) {
+            username = userid;
+        }
+        message.setFrom(new MessageUserBean(userid, username));
         sendMessageToAll(message);
     }
 
@@ -121,16 +136,16 @@ public class MessageWebSocket {
      * 消息
      */
     public static void sendMessageToAll (MessageBean message) {
-        String json = JSON.toJSON(message).toString();
         mWebSocketClientMap.values().forEach(t ->
                 t.forEach(i -> {
                     try {
-                        i.getSession().getBasicRemote().sendText(json);
+                        i.getSession().getBasicRemote().sendObject(message);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                 })
         );
     }
+
 
 }
